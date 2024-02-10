@@ -1,104 +1,126 @@
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+// export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-export type PathParam<Path extends string> =
-  Path extends `${infer L}/${infer R}`
-    ? PathParam<L> | PathParam<R>
-    : Path extends `{${infer Param}}`
-      ? Param extends `${infer Optional}?`
-        ? Optional
-        : Param
-      : never;
+// /*
+//   api.user.getUser({ urlParam: {id: '1234' }})
 
-export type Endpoint<
-  TParams extends Record<string, unknown>,
-  TData extends Record<string, unknown>,
-> = {
-  url: string;
-  method: HttpMethod;
-  params?: TParams;
-  data?: TData;
+//   api.getEndpoints()
+
+// */
+
+// type EndpointBuilder = Record<
+//   string,
+//   <TResponse, TParams>() => {
+//     query: (params: TParams) => string;
+//   }
+// >;
+
+// type CreateApiServiceProps<Endpoints extends EndpointBuilder> = {
+//   endpoints: Endpoints;
+// };
+
+// const createApiService = <Endpoints extends EndpointBuilder>({
+//   endpoints,
+// }: CreateApiServiceProps<Endpoints>): Endpoints => {};
+
+// const api = createApiService({
+//   endpoints: (build)=> {
+//     getPokemonByName: build.request<Record<string, unknown>, string>({
+//       query: ({
+//         pathParam: { name }
+//       })=> `pokemon/${name}`
+//     }),
+//     createPokemon: build.request<Record<string, unknown>, string>({
+//       query: ({
+//         body
+//       })=> {
+//         url: 'pokemon',
+//         method: 'POST',
+//         body
+//       },
+
+//     }),
+//   },
+// });
+
+//////////////////////
+
+import type { ApiService, EndpointBuilder } from './types';
+
+const createApiService = <Endpoints extends Record<string, unknown>>({
+  endpoints,
+}: {
+  endpoints: (builder: EndpointBuilder) => Endpoints;
+}): ApiService => {
+  const apiEndpoints = endpoints({
+    request: () => ({
+      method: 'GET',
+    }),
+  });
+
+  // const apiEndpoints = endpoints({
+  //   request: <Params, Body, Response>(
+  //     config: EndpointConfig<Params, Body, Response>,
+  //   ): ApiEndpoint<Params, Body, Response> => ({
+  //     query: (params: Params) => config.query(params),
+  //     parse: (response: AxiosResponse) => config.parse(response),
+  //   }),
+  // });
+
+  // const apiService = Object.keys(apiEndpoints).reduce(
+  //   (acc, key) => ({
+  //     ...acc,
+  //     [key]: async (params) => {
+  //       const endpoint = apiEndpoints[key];
+  //       const query = endpoint.query(params);
+  //       const response = await axios(query);
+
+  //       return endpoint.parse(response);
+  //     },
+  //   }),
+  //   {} as ApiService<Endpoints>,
+  // );
+
+  return apiService;
 };
 
-export type Endpoints = {
-  getUser: Endpoint<{ userId: string }>;
-  createUser: Endpoint<undefined, { name: string; email: string }>;
-  // other endpoints...
-};
+// Example usage
 
-export type ApiResponse<T> = {
-  data: T;
-};
-
-type EndpointsConfig = {
-  readonly getUser: Readonly<{
-    url: string;
-    method: HttpMethod;
-  }>;
-};
-
-type G = PathParam<'user/userId'>;
-
-const Endpoints = <T extends EndpointsConfig>(config: T): T => {};
-
-const b = Endpoints({
-  getUser: {
-    url: 'user/{userId}',
-    method: 'GET',
-  },
+const api = createApiService({
+  endpoints: (build) => ({
+    getUserInfo: build.request<{ username: string }, null, unknown>({
+      query: ({ username }) => ({
+        url: 'pokemon',
+        method: 'GET',
+      }),
+      parse: (response) => response.data,
+    }),
+  }),
 });
 
-const setEndpoint = () => {};
+const ap2i = createApiService({
+  endpoints: (build) => ({
+    getUserInfo: build.request<
+      { username: string },
+      null,
+      { id: string; username: string }
+    >({
+      query: ({ username }) => ({
+        url: `users/${username}`,
+        method: 'GET',
+      }),
+      parse: (response) => response.data,
+    }),
+  }),
+});
 
-// const createApiService = <T extends Record<string, Endpoint<any, any>>>(
-//   endpoints: T,
-// ) => {
-//   const makeRequest = async <TResponse>(
-//     endpoint: Endpoint<any, any>,
-//   ): Promise<TResponse> => {
-//     const { url, method, params, data } = endpoint;
-
-//     try {
-//       const response: AxiosResponse<ApiResponse<TResponse>> = await axios({
-//         url,
-//         method,
-//         params,
-//         data,
-//       });
-
-//       return response.data.data;
-//     } catch (error) {
-//       throw new Error(`API request failed: ${error.message}`);
-//     }
-//   };
-
-//   return Object.keys(endpoints).reduce(
-//     (acc, key) => {
-//       const endpoint = endpoints[key as keyof T];
-
-//       acc[key] = (request?: Omit<Endpoint<any, any>, 'url' | 'method'>) =>
-//         makeRequest(endpoint);
-
-//       return acc;
-//     },
-//     {} as {
-//       [K in keyof T]: (
-//         request?: Omit<Endpoint<any, any>, 'url' | 'method'>,
-//       ) => Promise<any>;
-//     },
-//   );
-// };
-
-// // Define your endpoints
-// const endpoints: Endpoints = {
-//   getUser: { url: '/users/{userId}', method: 'GET' },
-//   createUser: { url: '/users', method: 'POST' },
-// };
-
-// const api = createApiService(endpoints);
-
-// const userId = '123';
-// const user = await api.getUser({ params: { userId } });
-
-// const newUser = await api.createUser({
-//   data: { name: 'John Doe', email: 'john@example.com' },
-// });
+ap2i
+  .getUserInfo({
+    urlParams: 1,
+    params: {
+      id: '1',
+    },
+    data: { isAvailable: true },
+  })
+  .then((userInfo) => {
+    console.log(userInfo);
+  });
